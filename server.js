@@ -31,11 +31,52 @@ if (!fs.existsSync(uploadDir)) {
 // Helper function to execute Python scripts
 function executePythonScript(scriptPath, options = {}) {
   return new Promise((resolve, reject) => {
+    // Check if we're in Vercel environment (serverless)
+    if (process.env.VERCEL) {
+      console.log('Running in Vercel environment - mocking Python execution');
+      // Return mock data for Vercel environment
+      return resolve([getMockDataForScript(scriptPath, options)]);
+    }
+    
+    // Normal execution for local environment
     PythonShell.run(scriptPath, options, (err, results) => {
       if (err) return reject(err);
       return resolve(results);
     });
   });
+}
+
+// Helper function to provide mock data for different scan types
+function getMockDataForScript(scriptPath, options) {
+  if (scriptPath.includes('url_scanner')) {
+    return {
+      "malicious": false,
+      "url": options.args[0],
+      "categories": [],
+      "risk_level": "low",
+      "message": "Scan completed (demo mode)",
+      "scan_id": `demo-${Date.now()}`
+    };
+  } else if (scriptPath.includes('port_scanner')) {
+    return {
+      "host": options.args[0],
+      "scan_time": new Date().toISOString(),
+      "open_ports": [
+        {"port": 80, "service": "HTTP", "state": "Open", "risk": "Low"},
+        {"port": 443, "service": "HTTPS", "state": "Open", "risk": "Low"}
+      ],
+      "ports_scanned": options.args[1] || "1-1000",
+      "scan_id": `demo-${Date.now()}`
+    };
+  } else if (scriptPath.includes('file_scanner')) {
+    return {
+      "malicious": false,
+      "detections": [],
+      "message": "File scan completed (demo mode)",
+      "scan_id": `demo-${Date.now()}`
+    };
+  }
+  return { "message": "Mock data not available", "scan_id": `demo-${Date.now()}` };
 }
 
 // API routes
@@ -129,12 +170,74 @@ app.post('/api/scan-file', upload.single('file'), async (req, res) => {
   }
 });
 
+// Reports endpoint
+app.get('/api/reports', async (req, res) => {
+  try {
+    const reportType = req.query.type || 'all';
+    const startDate = req.query.start_date;
+    const endDate = req.query.end_date;
+
+    const options = {
+      mode: 'json',
+      pythonPath: 'python',
+      pythonOptions: ['-u'],
+      scriptPath: './api/scanner',
+      args: ['all', reportType, startDate, endDate].filter(Boolean)
+    };
+
+    // In Vercel environment, return mock data
+    if (process.env.VERCEL) {
+      return res.json({
+        "reports": [
+          {
+            "id": "demo-file-1",
+            "type": "file",
+            "target": "sample.pdf",
+            "status": "clean",
+            "created_at": new Date(Date.now() - 86400000).toISOString(),
+            "scan_id": "demo-scan-1"
+          },
+          {
+            "id": "demo-url-1",
+            "type": "url",
+            "target": "https://example.com",
+            "status": "clean",
+            "created_at": new Date(Date.now() - 43200000).toISOString(),
+            "scan_id": "demo-scan-2"
+          },
+          {
+            "id": "demo-port-1",
+            "type": "port",
+            "target": "example.com",
+            "status": "suspicious",
+            "created_at": new Date().toISOString(),
+            "scan_id": "demo-scan-3"
+          }
+        ]
+      });
+    }
+
+    const results = await executePythonScript('reports_bridge.py', options);
+    res.json(results[0]);
+  } catch (error) {
+    console.error('Error in reports endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Catch-all for React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// For Vercel, we need to export the Express app
+if (process.env.VERCEL) {
+  console.log('Exporting app for Vercel deployment');
+  module.exports = app;
+} else {
+  // Start the server normally for local development
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}

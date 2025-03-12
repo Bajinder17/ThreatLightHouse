@@ -18,11 +18,16 @@ app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Debug information about the environment
+// Simple logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+// Debug info on startup
+console.log('Starting ThreatLightHouse server...');
 console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('Current directory:', __dirname);
-console.log('Files in current directory:', fs.existsSync(__dirname) ? fs.readdirSync(__dirname) : 'Directory not accessible');
-console.log('Build directory exists:', fs.existsSync(path.join(__dirname, 'build')));
+console.log('VERCEL_ENV:', process.env.VERCEL_ENV);
 
 // Setup static file serving for React app
 try {
@@ -30,9 +35,6 @@ try {
   if (fs.existsSync(buildPath)) {
     console.log('Serving static files from:', buildPath);
     app.use(express.static(buildPath));
-    
-    // List build directory contents for debugging
-    console.log('Build directory contents:', fs.readdirSync(buildPath));
   } else {
     console.warn('Build directory does not exist at:', buildPath);
   }
@@ -40,16 +42,15 @@ try {
   console.error('Static file serving setup failed:', error);
 }
 
-// Setup temporary upload directory
+// Setup temporary upload directory for file scanning
 let uploadDir;
 try {
-  uploadDir = path.join(__dirname, 'uploads');
+  uploadDir = path.join(process.env.VERCEL ? '/tmp' : __dirname, 'uploads');
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 } catch (error) {
   console.warn('Upload directory setup failed:', error.message);
-  // Use OS temp directory as fallback
   uploadDir = require('os').tmpdir();
 }
 
@@ -116,8 +117,12 @@ function getMockDataForScript(scriptType, options) {
 }
 
 // Root health check endpoint
-app.get('/', (req, res) => {
-  res.send('ThreatLightHouse API is running. Go to /app for the main application.');
+app.get('/health', (req, res) => {
+  res.json({
+    status: "online",
+    message: "ThreatLightHouse API is running",
+    version: "1.0.0"
+  });
 });
 
 // API base route
@@ -126,6 +131,12 @@ app.get('/api', (req, res) => {
     status: "online",
     message: "ThreatLightHouse API is running",
     version: "1.0.0",
+    endpoints: {
+      "file_scan": "/api/scan-file",
+      "url_scan": "/api/scan-url",
+      "port_scan": "/api/scan-ports",
+      "reports": "/api/reports"
+    }
   });
 });
 
@@ -199,29 +210,89 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
-// Redirect all other requests to React app
+// Generate a basic HTML response if build files are not available
+const generateBasicHTML = () => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ThreatLightHouse</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8f9fa;
+      color: #212529;
+      line-height: 1.5;
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    h1 { color: #4361ee; }
+    .container {
+      background-color: white;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+    .feature {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border-radius: 8px;
+      background-color: #f1f3f9;
+    }
+    .feature h3 {
+      color: #4361ee;
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ThreatLightHouse</h1>
+    <p>Advanced threat detection platform that allows you to scan files, URLs, and network ports for potential security threats.</p>
+  </div>
+  <div class="feature">
+    <h3>File Scanning</h3>
+    <p>Scan files for malware, viruses, and other threats</p>
+  </div>
+  <div class="feature">
+    <h3>URL Scanning</h3>
+    <p>Check websites for malicious content, phishing, and safety issues</p>
+  </div>
+  <div class="feature">
+    <h3>Port Scanning</h3>
+    <p>Identify open ports and potential security vulnerabilities</p>
+  </div>
+</body>
+</html>
+`;
+
+// Catch-all handler for all other routes - serve React app or fallback HTML
 app.get('*', (req, res) => {
   try {
     const indexPath = path.join(__dirname, 'build', 'index.html');
-    console.log('Attempting to serve index.html from:', indexPath);
     
     if (fs.existsSync(indexPath)) {
+      // Serve the React app's index.html
       res.sendFile(indexPath);
     } else {
-      console.error('index.html file not found');
-      res.status(404).send('Application files not found');
+      // If build files are not available, send a basic HTML response
+      res.send(generateBasicHTML());
     }
   } catch (error) {
-    console.error('Error sending index.html:', error);
-    res.status(500).send('Error loading application');
+    console.error('Error handling catch-all route:', error);
+    res.send(generateBasicHTML());
   }
 });
 
 // For Vercel, export the Express app
 module.exports = app;
 
-// Only listen if not in production environment
-if (process.env.NODE_ENV !== 'production') {
+// Start server if not in production environment
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

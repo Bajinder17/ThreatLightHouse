@@ -14,8 +14,8 @@ const getApiBaseUrl = () => {
   
   // Otherwise, use environment-specific defaults
   return isProduction 
-    ? 'https://your-backend-api.herokuapp.com/api'  // Replace with your actual backend API URL in production
-    : 'http://localhost:5000/api';                  // Default development URL
+    ? 'https://threatlighthouse-api.herokuapp.com/api'  // Update this with your actual Heroku app name
+    : 'http://localhost:5000/api';                      // Default development URL
 };
 
 const config = {

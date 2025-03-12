@@ -10,3 +10,4 @@ werkzeug==2.0.3
 pyopenssl==22.0.0
 reportlab==3.6.12
 pillow==9.2.0
+gunicorn==20.1.0

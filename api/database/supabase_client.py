@@ -5,16 +5,16 @@ from datetime import datetime
 from supabase import create_client
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables - use both .env file and system environment variables
 load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Supabase configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+# Supabase configuration - prioritize system environment variables (for Heroku)
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY")
 
 # Initialize Supabase client
 supabase = None

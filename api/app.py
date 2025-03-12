@@ -29,6 +29,21 @@ if not os.path.exists(UPLOAD_FOLDER):
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32MB max file size
 
+# Add a route to verify the API is running
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({
+        "status": "online",
+        "message": "ThreatLightHouse API is running",
+        "version": "1.0.0",
+        "endpoints": {
+            "file_scan": "/api/scan-file",
+            "url_scan": "/api/scan-url",
+            "port_scan": "/api/scan-ports",
+            "reports": "/api/reports"
+        }
+    })
+
 @app.route('/api/scan-file', methods=['POST'])
 def api_scan_file():
     try:
@@ -171,4 +186,6 @@ def api_get_reports():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Get port from environment variable or use default
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

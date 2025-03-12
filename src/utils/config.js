@@ -13,9 +13,8 @@ const getApiBaseUrl = () => {
   }
   
   // Otherwise, use environment-specific defaults
-  return isProduction 
-    ? 'https://threatlighthouse-api.herokuapp.com/api'  // Update this with your actual Heroku app name
-    : 'http://localhost:5000/api';                      // Default development URL
+  // In this unified setup, the API is served from the same domain 
+  return '/api';
 };
 
 const config = {

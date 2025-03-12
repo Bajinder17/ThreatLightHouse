@@ -1,0 +1,23 @@
+# Python files
+*.py
+__pycache__/
+/api/scanner/
+/api/database/
+/api/report_generator/
+
+# Server files
+/server.js
+/build.js
+/deploy.sh
+
+# Test files
+/test/
+
+# Heroku files
+/Procfile
+/runtime.txt
+/requirements.txt
+
+# Development configs
+/.vscode/
+/.idea/

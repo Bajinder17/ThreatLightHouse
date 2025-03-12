@@ -33,6 +33,20 @@ ENV/
 *.egg-info/
 .installed.cfg
 *.egg
+*.py
+/api/scanner/
+/api/database/
+/api/report_generator/
+/api/app.py
+
+# Heroku specific files
+Procfile
+runtime.txt
+requirements.txt
+
+# Server files that should not be deployed to Vercel
+server.js
+build.js
 
 # Uploads directory
 /uploads/

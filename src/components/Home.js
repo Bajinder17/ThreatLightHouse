@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Row, Col, Card, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import API from '../utils/api';
@@ -11,12 +11,9 @@ const Home = () => {
     portScanCount: 0,
     threatsDetected: 0
   });
-
-  useEffect(() => {
-    fetchScanStats();
-  }, []);
-
-  const fetchScanStats = async () => {
+  
+  // Use useCallback to memoize the fetchScanStats function so it can be used as a dependency
+  const fetchScanStats = useCallback(async () => {
     try {
       const response = await API.getReports();
       const reports = response.data.reports || [];
@@ -52,7 +49,36 @@ const Home = () => {
     } catch (err) {
       logError(err, 'Home.fetchScanStats');
     }
-  };
+  }, []);
+
+  // Set up a refresh interval for the stats
+  useEffect(() => {
+    fetchScanStats(); // Initial fetch
+    
+    // Set up polling to refresh stats every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchScanStats();
+    }, 30000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
+  }, [fetchScanStats]);
+
+  // Add a custom event listener to refresh stats when a scan is completed
+  useEffect(() => {
+    // Define the event handler
+    const handleScanComplete = () => {
+      fetchScanStats();
+    };
+    
+    // Add event listener
+    window.addEventListener('scan-complete', handleScanComplete);
+    
+    // Clean up the event listener on component unmount
+    return () => {
+      window.removeEventListener('scan-complete', handleScanComplete);
+    };
+  }, [fetchScanStats]);
 
   return (
     <>

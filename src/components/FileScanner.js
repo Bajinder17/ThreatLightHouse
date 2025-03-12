@@ -40,6 +40,10 @@ const FileScanner = () => {
         });
       }, 500);
       
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('filename', file.name);  // Add filename for better tracking
+      
       const response = await API.scanFile(file);
       
       clearInterval(progressInterval);
@@ -47,6 +51,9 @@ const FileScanner = () => {
       
       setScanResult(response.data);
       setIsLoading(false);
+      
+      // Always dispatch the scan-complete event
+      window.dispatchEvent(new Event('scan-complete'));
     } catch (err) {
       logError(err, 'FileScanner.handleSubmit');
       setError('Error scanning file: ' + getErrorMessage(err));

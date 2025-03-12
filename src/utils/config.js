@@ -2,9 +2,6 @@
  * Application configuration settings
  */
 
-// Determine if we're in production
-const isProduction = process.env.NODE_ENV === 'production';
-
 // Set the API base URL based on environment
 const getApiBaseUrl = () => {
   // If there's a REACT_APP_API_URL env variable, use that

@@ -3,7 +3,6 @@ import { Container, Table, Button, Alert, Card, Form, Row, Col } from 'react-boo
 import API from '../utils/api';
 import { getErrorMessage, logError } from '../utils/errorHandler';
 import LoadingSpinner from './common/LoadingSpinner';
-import config from '../utils/config';
 
 const Reports = () => {
   const [reports, setReports] = useState([]);
@@ -14,7 +13,7 @@ const Reports = () => {
 
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchReports = async () => {
     try {

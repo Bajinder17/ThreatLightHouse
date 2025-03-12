@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Container, Form, Button, Alert, Card, ProgressBar } from 'react-bootstrap';
 import API from '../utils/api';
 import { getErrorMessage, logError } from '../utils/errorHandler';
-import LoadingSpinner from './common/LoadingSpinner';
 
 const FileScanner = () => {
   const [file, setFile] = useState(null);

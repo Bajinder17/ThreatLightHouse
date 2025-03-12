@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
+const fs = require('fs');
 
 // Initialize app
 const app = express();
@@ -17,22 +18,32 @@ app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Debug information about the environment
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Current directory:', __dirname);
+console.log('Files in current directory:', fs.existsSync(__dirname) ? fs.readdirSync(__dirname) : 'Directory not accessible');
+console.log('Build directory exists:', fs.existsSync(path.join(__dirname, 'build')));
+
 // Setup static file serving for React app
-// Check if the build directory exists in the current environment
 try {
   const buildPath = path.join(__dirname, 'build');
-  if (require('fs').existsSync(buildPath)) {
+  if (fs.existsSync(buildPath)) {
+    console.log('Serving static files from:', buildPath);
     app.use(express.static(buildPath));
+    
+    // List build directory contents for debugging
+    console.log('Build directory contents:', fs.readdirSync(buildPath));
+  } else {
+    console.warn('Build directory does not exist at:', buildPath);
   }
 } catch (error) {
-  console.warn('Static file serving setup failed:', error.message);
+  console.error('Static file serving setup failed:', error);
 }
 
 // Setup temporary upload directory
 let uploadDir;
 try {
   uploadDir = path.join(__dirname, 'uploads');
-  const fs = require('fs');
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
@@ -104,7 +115,12 @@ function getMockDataForScript(scriptType, options) {
   return { "message": "Mock data not available", "scan_id": `demo-${Date.now()}` };
 }
 
-// API routes
+// Root health check endpoint
+app.get('/', (req, res) => {
+  res.send('ThreatLightHouse API is running. Go to /app for the main application.');
+});
+
+// API base route
 app.get('/api', (req, res) => {
   res.json({
     status: "online",
@@ -121,7 +137,7 @@ app.post('/api/scan-url', async (req, res) => {
       return res.status(400).json({ error: "URL is required" });
     }
 
-    // In Vercel, always return mock data
+    // Return mock data
     return res.json(getMockDataForScript('url', { url }));
   } catch (error) {
     console.error('Error in URL scanning endpoint:', error);
@@ -137,7 +153,7 @@ app.post('/api/scan-ports', async (req, res) => {
       return res.status(400).json({ error: "Host is required" });
     }
 
-    // In Vercel, always return mock data
+    // Return mock data
     return res.json(getMockDataForScript('port', { host, port_range }));
   } catch (error) {
     console.error('Error in port scanning endpoint:', error);
@@ -155,12 +171,12 @@ app.post('/api/scan-file', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // In Vercel, always return mock data
+    // Return mock data
     const result = getMockDataForScript('file');
     
     // Clean up the uploaded file
     try {
-      require('fs').unlinkSync(req.file.path);
+      fs.unlinkSync(req.file.path);
     } catch (err) {
       console.error('Error deleting file:', err);
     }
@@ -175,7 +191,7 @@ app.post('/api/scan-file', upload.single('file'), async (req, res) => {
 // Reports endpoint
 app.get('/api/reports', async (req, res) => {
   try {
-    // In Vercel, always return mock data
+    // Return mock data
     return res.json(getMockDataForScript('reports'));
   } catch (error) {
     console.error('Error in reports endpoint:', error);
@@ -183,11 +199,20 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
-// Catch-all for React app
+// Redirect all other requests to React app
 app.get('*', (req, res) => {
   try {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+    const indexPath = path.join(__dirname, 'build', 'index.html');
+    console.log('Attempting to serve index.html from:', indexPath);
+    
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      console.error('index.html file not found');
+      res.status(404).send('Application files not found');
+    }
   } catch (error) {
+    console.error('Error sending index.html:', error);
     res.status(500).send('Error loading application');
   }
 });
@@ -195,7 +220,7 @@ app.get('*', (req, res) => {
 // For Vercel, export the Express app
 module.exports = app;
 
-// Only listen if not in Vercel environment
+// Only listen if not in production environment
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
